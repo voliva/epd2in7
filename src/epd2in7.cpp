@@ -21,11 +21,11 @@ using v8::Context;
 using v8::Array;
 
 // Async worker
-class Epd4In2AsyncWorker : public Nan::AsyncWorker {
+class Epd2In7AsyncWorker : public Nan::AsyncWorker {
   public:
     function <void ()> method;
 
-    Epd4In2AsyncWorker(function <void ()> method, Nan::Callback *callback)
+    Epd2In7AsyncWorker(function <void ()> method, Nan::Callback *callback)
       : Nan::AsyncWorker(callback) {
       this->method = method;
     }
@@ -54,10 +54,10 @@ class Epd4In2AsyncWorker : public Nan::AsyncWorker {
 };
 
 // Display resolution
-#define EPD_WIDTH       400
-#define EPD_HEIGHT      300
+#define EPD_WIDTH       176
+#define EPD_HEIGHT      264
 
-// EPD4IN2 commands
+// EPD2IN7 commands
 #define PANEL_SETTING                               0x00
 #define POWER_SETTING                               0x01
 #define POWER_OFF                                   0x02
@@ -70,82 +70,75 @@ class Epd4In2AsyncWorker : public Nan::AsyncWorker {
 #define DATA_STOP                                   0x11
 #define DISPLAY_REFRESH                             0x12
 #define DATA_START_TRANSMISSION_2                   0x13
-#define LUT_FOR_VCOM                                0x20
-#define LUT_WHITE_TO_WHITE                          0x21
-#define LUT_BLACK_TO_WHITE                          0x22
-#define LUT_WHITE_TO_BLACK                          0x23
-#define LUT_BLACK_TO_BLACK                          0x24
+#define PARTIAL_DISPLAY_REFRESH                     0x16
 #define PLL_CONTROL                                 0x30
 #define TEMPERATURE_SENSOR_COMMAND                  0x40
-#define TEMPERATURE_SENSOR_SELECTION                0x41
+#define TEMPERATURE_SENSOR_CALIBRATION              0x41
 #define TEMPERATURE_SENSOR_WRITE                    0x42
 #define TEMPERATURE_SENSOR_READ                     0x43
 #define VCOM_AND_DATA_INTERVAL_SETTING              0x50
 #define LOW_POWER_DETECTION                         0x51
 #define TCON_SETTING                                0x60
-#define RESOLUTION_SETTING                          0x61
-#define GSST_SETTING                                0x65
+#define TCON_RESOLUTION                             0x61
+#define SOURCE_AND_GATE_START_SETTING               0x62
 #define GET_STATUS                                  0x71
-#define AUTO_MEASUREMENT_VCOM                       0x80
-#define READ_VCOM_VALUE                             0x81
-#define VCM_DC_SETTING                              0x82
-#define PARTIAL_WINDOW                              0x90
-#define PARTIAL_IN                                  0x91
-#define PARTIAL_OUT                                 0x92
+#define AUTO_MEASURE_VCOM                           0x80
+#define VCOM_VALUE                                  0x81
+#define VCM_DC_SETTING_REGISTER                     0x82
 #define PROGRAM_MODE                                0xA0
-#define ACTIVE_PROGRAMMING                          0xA1
-#define READ_OTP                                    0xA2
-#define POWER_SAVING                                0xE3
+#define ACTIVE_PROGRAM                              0xA1
+#define READ_OTP_DATA                               0xA2
 
 // original
 const unsigned char lut_vcom0[] = {
-0x00, 0x17, 0x00, 0x00, 0x00, 0x02,        
-0x00, 0x17, 0x17, 0x00, 0x00, 0x02,        
-0x00, 0x0A, 0x01, 0x00, 0x00, 0x01,        
-0x00, 0x0E, 0x0E, 0x00, 0x00, 0x02,        
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00,        
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00,        
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00	,0x00,
+0x00	,0x08	,0x00	,0x00	,0x00	,0x02,
+0x60	,0x28	,0x28	,0x00	,0x00	,0x01,
+0x00	,0x14	,0x00	,0x00	,0x00	,0x01,
+0x00	,0x12	,0x12	,0x00	,0x00	,0x01,
+0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+0x00	,0x00	,0x00	,0x00	,0x00	,0x00
 };
 
 const unsigned char lut_ww[] = {
-  0x40, 0x17, 0x00, 0x00, 0x00, 0x02,
-  0x90, 0x17, 0x17, 0x00, 0x00, 0x02,
-  0x40, 0x0A, 0x01, 0x00, 0x00, 0x01,
-  0xA0, 0x0E, 0x0E, 0x00, 0x00, 0x02,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x40	,0x08	,0x00	,0x00	,0x00	,0x02,
+    0x90	,0x28	,0x28	,0x00	,0x00	,0x01,
+    0x40	,0x14	,0x00	,0x00	,0x00	,0x01,
+    0xA0	,0x12	,0x12	,0x00	,0x00	,0x01,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
 };
 
 const unsigned char lut_bw[] = {
-  0x40, 0x17, 0x00, 0x00, 0x00, 0x02,
-  0x90, 0x17, 0x17, 0x00, 0x00, 0x02,
-  0x40, 0x0A, 0x01, 0x00, 0x00, 0x01,
-  0xA0, 0x0E, 0x0E, 0x00, 0x00, 0x02,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-const unsigned char lut_wb[] = {
-  0x80, 0x17, 0x00, 0x00, 0x00, 0x02,
-  0x90, 0x17, 0x17, 0x00, 0x00, 0x02,
-  0x80, 0x0A, 0x01, 0x00, 0x00, 0x01,
-  0x50, 0x0E, 0x0E, 0x00, 0x00, 0x02,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x40	,0x08	,0x00	,0x00	,0x00	,0x02,
+    0x90	,0x28	,0x28	,0x00	,0x00	,0x01,
+    0x40	,0x14	,0x00	,0x00	,0x00	,0x01,
+    0xA0	,0x12	,0x12	,0x00	,0x00	,0x01,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
 };
 
 const unsigned char lut_bb[] = {
-  0x80, 0x17, 0x00, 0x00, 0x00, 0x02,
-  0x90, 0x17, 0x17, 0x00, 0x00, 0x02,
-  0x80, 0x0A, 0x01, 0x00, 0x00, 0x01,
-  0x50, 0x0E, 0x0E, 0x00, 0x00, 0x02,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x80	,0x08	,0x00	,0x00	,0x00	,0x02,
+    0x90	,0x28	,0x28	,0x00	,0x00	,0x01,
+    0x80	,0x14	,0x00	,0x00	,0x00	,0x01,
+    0x50	,0x12	,0x12	,0x00	,0x00	,0x01,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+};
+
+const unsigned char lut_wb[] = {
+    0x80	,0x08	,0x00	,0x00	,0x00	,0x02,
+    0x90	,0x28	,0x28	,0x00	,0x00	,0x01,
+    0x80	,0x14	,0x00	,0x00	,0x00	,0x01,
+    0x50	,0x12	,0x12	,0x00	,0x00	,0x01,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
+    0x00	,0x00	,0x00	,0x00	,0x00	,0x00,
 };
 
 void SendCommand(UBYTE command)
@@ -176,7 +169,7 @@ void Reset(void)
     EpdIf::DigitalWrite(RST_PIN, HIGH);
     EpdIf::DelayMs(200);
     EpdIf::DigitalWrite(RST_PIN, LOW);                //module reset
-    EpdIf::DelayMs(200);
+    EpdIf::DelayMs(10);
     EpdIf::DigitalWrite(RST_PIN, HIGH);
     EpdIf::DelayMs(200);
 }
@@ -188,6 +181,11 @@ void TurnOnDisplay(void)
     WaitUntilIdle();
 }
 
+#define LUT_FOR_VCOM 0x20
+#define LUT_WHITE_TO_WHITE 0x21
+#define LUT_BLACK_TO_WHITE 0x22
+#define LUT_WHITE_TO_BLACK 0x23
+#define LUT_BLACK_TO_BLACK 0x24
 void SetLut(void)
 {
     unsigned int count;
@@ -241,38 +239,67 @@ void init_sync(void)
     Reset();
 
     SendCommand(POWER_SETTING);			//POWER SETTING
-    SendData(0x03);
+    SendData(0x03); // VDS_EN, VDG_EN
+    SendData(0x00); // VCOM_HV, VGHL_LV[1], VGHL_LV[0]
+    SendData(0x2b); // VDH
+    SendData(0x2b); // VDL
+    SendData(0x09); // VDHR
+
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0x60);
+    SendData(0xA5);
+	
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0x89);
+    SendData(0xA5);
+		
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0x90);
     SendData(0x00);
-    SendData(0x2b);
-    SendData(0x2b);
+		
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0x93);
+    SendData(0x2A);
+		
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0xA0);
+    SendData(0xA5);
+		
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0xA1);
+    SendData(0x00);
+		
+    // Power optimization
+    SendCommand(0xF8);
+    SendData(0x73);
+    SendData(0x41);
+
+    SendCommand(PARTIAL_DISPLAY_REFRESH);
+    SendData(0x00);
 
     SendCommand(BOOSTER_SOFT_START);         //boost soft start
-    SendData(0x17);		//A
-    SendData(0x17);		//B
-    SendData(0x17);		//C
+    SendData(0x07);
+    SendData(0x07);
+    SendData(0x17);
 
     SendCommand(POWER_ON);
     WaitUntilIdle();
 
-    SendCommand(PANEL_SETTING);			//panel setting
-    SendData(0xbf);		//KW-BF   KWR-AF	BWROTP 0f	BWOTP 1f
-    SendData(0x0d);
+    SendCommand(PANEL_SETTING);
+    SendData(0xAF); // KW-BF   KWR-AF    BWROTP 0f
 
-    SendCommand(PLL_CONTROL);			//PLL setting
-    SendData(0x3C);      	// 3A 100HZ   29 150Hz 39 200HZ	31 171HZ
+    SendCommand(PLL_CONTROL);
+    SendData(0x3A); // 3A 100HZ   29 150Hz 39 200HZ    31 171HZ
 
-    SendCommand(0x61);			//resolution setting
-    SendData(0x01);
-    SendData(0x90);       //128
-    SendData(0x01);		//
-    SendData(0x2c);
+    SendCommand(VCM_DC_SETTING_REGISTER);
+    SendData(0x12);
 
-    SendCommand(0x82);			//vcom_DC setting
-    SendData(0x28);
-
-    SendCommand(0X50);			//VCOM AND DATA INTERVAL SETTING
-    SendData(0x97);		//97white border 77black border		VBDF 17|D7 VBDW 97 VBDB 57		VBDF F7 VBDW 77 VBDB 37  VBDR B7
-    
     SetLut();
     
     // TODO: return 0;
@@ -281,7 +308,7 @@ void init_sync(void)
 
 void init(const FunctionCallbackInfo<Value>& args)
 {
-  Nan::AsyncQueueWorker(new Epd4In2AsyncWorker(
+  Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
     bind(init_sync),
     new Nan::Callback(args[0].As<v8::Function>())
   ));
@@ -325,7 +352,7 @@ void displayFrame(const FunctionCallbackInfo<Value>& args)
   	imageData = static_cast<UBYTE*>(blackData);
   }
 
-  Nan::AsyncQueueWorker(new Epd4In2AsyncWorker(
+  Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
     bind(display, imageData),
     new Nan::Callback(args[1].As<v8::Function>())
   ));
@@ -358,7 +385,7 @@ void clear_sync(void)
 
 void clear(const FunctionCallbackInfo<Value>& args)
 {
-  Nan::AsyncQueueWorker(new Epd4In2AsyncWorker(
+  Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
     bind(clear_sync),
     new Nan::Callback(args[0].As<v8::Function>())
   ));
@@ -375,7 +402,7 @@ void sleep_sync(void)
 
 void sleep(const FunctionCallbackInfo<Value>& args)
 {
-  Nan::AsyncQueueWorker(new Epd4In2AsyncWorker(
+  Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
     bind(sleep_sync),
     new Nan::Callback(args[0].As<v8::Function>())
   ));
@@ -392,4 +419,4 @@ void InitAll(Local<Object> exports)
   NODE_SET_METHOD(exports, "displayFrame", displayFrame);
 }
 
-NODE_MODULE(epd4in2, InitAll)
+NODE_MODULE(epd2in7, InitAll)

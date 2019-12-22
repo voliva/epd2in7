@@ -1,4 +1,4 @@
-const epd4in2 = require('./build/Release/epd4in2');
+const epd4in2 = require('./build/Release/epd2in7');
 const gd = require('node-gd');
 
 const width = epd4in2.width();
