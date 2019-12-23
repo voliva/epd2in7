@@ -6,6 +6,7 @@
 using namespace std;
 
 #include "epdif.h"
+#include "lut.h"
 
 using v8::Array;
 using v8::Boolean;
@@ -86,41 +87,6 @@ public:
 #define ACTIVE_PROGRAM 0xA1
 #define READ_OTP_DATA 0xA2
 
-// original
-const unsigned char lut_vcom0[] = {
-    0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x02, 0x60, 0x28, 0x28,
-    0x00, 0x00, 0x01, 0x00, 0x14, 0x00, 0x00, 0x00, 0x01, 0x00, 0x12,
-    0x12, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-const unsigned char lut_ww[] = {
-    0x40, 0x08, 0x00, 0x00, 0x00, 0x02, 0x90, 0x28, 0x28, 0x00, 0x00,
-    0x01, 0x40, 0x14, 0x00, 0x00, 0x00, 0x01, 0xA0, 0x12, 0x12, 0x00,
-    0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-const unsigned char lut_bw[] = {
-    0x40, 0x08, 0x00, 0x00, 0x00, 0x02, 0x90, 0x28, 0x28, 0x00, 0x00,
-    0x01, 0x40, 0x14, 0x00, 0x00, 0x00, 0x01, 0xA0, 0x12, 0x12, 0x00,
-    0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-const unsigned char lut_bb[] = {
-    0x80, 0x08, 0x00, 0x00, 0x00, 0x02, 0x90, 0x28, 0x28, 0x00, 0x00,
-    0x01, 0x80, 0x14, 0x00, 0x00, 0x00, 0x01, 0x50, 0x12, 0x12, 0x00,
-    0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-const unsigned char lut_wb[] = {
-    0x80, 0x08, 0x00, 0x00, 0x00, 0x02, 0x90, 0x28, 0x28, 0x00, 0x00,
-    0x01, 0x80, 0x14, 0x00, 0x00, 0x00, 0x01, 0x50, 0x12, 0x12, 0x00,
-    0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
 void SendCommand(UBYTE command) {
   EpdIf::DigitalWrite(DC_PIN, LOW);
   EpdIf::DigitalWrite(CS_PIN, LOW);
@@ -150,13 +116,14 @@ void Reset(void) {
   EpdIf::DelayMs(200);
 }
 
-void TurnOnDisplay(void) {
+void RefreshDisplay(void) {
   SendCommand(DISPLAY_REFRESH);
   EpdIf::DelayMs(100);
   WaitUntilIdle();
 }
 
 void PartialRefresh(UWORD x, UWORD y, UWORD w, UWORD l) {
+  SendCommand(PARTIAL_DISPLAY_REFRESH);
   SendData(x >> 8);
   SendData(x & 0xf8); // x should be the multiple of 8, the last 3 bit will
                       // always be ignored
@@ -206,6 +173,35 @@ void SetLut(void) {
   }
 }
 
+void SetGrayLut(void) {
+  unsigned int count;
+
+  SendCommand(LUT_FOR_VCOM); // vcom
+  for (count = 0; count < 44; count++) {
+    SendData(gray_lut_vcom[count]);
+  }
+
+  SendCommand(LUT_WHITE_TO_WHITE); // ww --
+  for (count = 0; count < 42; count++) {
+    SendData(gray_lut_ww[count]);
+  }
+
+  SendCommand(LUT_BLACK_TO_WHITE); // bw r
+  for (count = 0; count < 42; count++) {
+    SendData(gray_lut_bw[count]);
+  }
+
+  SendCommand(LUT_WHITE_TO_BLACK); // wb w
+  for (count = 0; count < 42; count++) {
+    SendData(gray_lut_wb[count]);
+  }
+
+  SendCommand(LUT_BLACK_TO_BLACK); // bb b
+  for (count = 0; count < 42; count++) {
+    SendData(gray_lut_bb[count]);
+  }
+}
+
 void width(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
   Local<Number> num = Number::New(isolate, EPD_WIDTH);
@@ -218,64 +214,70 @@ void height(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(num);
 }
 
+void global_init(bool vdhr) {
+  Reset();
+
+  SendCommand(POWER_SETTING); // POWER SETTING
+  SendData(0x03);             // VDS_EN, VDG_EN
+  SendData(0x00);             // VCOM_HV, VGHL_LV[1], VGHL_LV[0]
+  SendData(0x2b);             // VDH
+  SendData(0x2b);             // VDL
+  if(vdhr) {
+    SendData(0x09);             // VDHR
+  }
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0x60);
+  SendData(0xA5);
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0x89);
+  SendData(0xA5);
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0x90);
+  SendData(0x00);
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0x93);
+  SendData(0x2A);
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0xA0);
+  SendData(0xA5);
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0xA1);
+  SendData(0x00);
+
+  // Power optimization
+  SendCommand(0xF8);
+  SendData(0x73);
+  SendData(0x41);
+
+  SendCommand(PARTIAL_DISPLAY_REFRESH);
+  SendData(0x00);
+
+  SendCommand(BOOSTER_SOFT_START); // boost soft start
+  SendData(0x07);
+  SendData(0x07);
+  SendData(0x17);
+
+  SendCommand(POWER_ON);
+  WaitUntilIdle();
+}
+
 void init_sync(void) {
   if (EpdIf::IfInit() != 0) {
     // TODO : throw error
   } else {
-    Reset();
-
-    SendCommand(POWER_SETTING); // POWER SETTING
-    SendData(0x03);             // VDS_EN, VDG_EN
-    SendData(0x00);             // VCOM_HV, VGHL_LV[1], VGHL_LV[0]
-    SendData(0x2b);             // VDH
-    SendData(0x2b);             // VDL
-    SendData(0x09);             // VDHR
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0x60);
-    SendData(0xA5);
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0x89);
-    SendData(0xA5);
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0x90);
-    SendData(0x00);
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0x93);
-    SendData(0x2A);
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0xA0);
-    SendData(0xA5);
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0xA1);
-    SendData(0x00);
-
-    // Power optimization
-    SendCommand(0xF8);
-    SendData(0x73);
-    SendData(0x41);
-
-    SendCommand(PARTIAL_DISPLAY_REFRESH);
-    SendData(0x00);
-
-    SendCommand(BOOSTER_SOFT_START); // boost soft start
-    SendData(0x07);
-    SendData(0x07);
-    SendData(0x17);
-
-    SendCommand(POWER_ON);
-    WaitUntilIdle();
+    global_init(true);
 
     SendCommand(PANEL_SETTING);
     SendData(0xAF); // KW-BF   KWR-AF    BWROTP 0f
@@ -297,6 +299,40 @@ void init(const FunctionCallbackInfo<Value> &args) {
       bind(init_sync), new Nan::Callback(args[0].As<v8::Function>())));
 }
 
+void init_grey_sync(void) {
+  if (EpdIf::IfInit() != 0) {
+    // TODO : throw error
+  } else {
+    global_init(false);
+
+    SendCommand(PANEL_SETTING); // panel setting
+    SendData(0xbf);             //  #KW-BF   KWR-AF BWROTP 0f
+
+    SendCommand(PLL_CONTROL); // PLL setting
+    SendData(0x90);           //       #100hz
+
+    SendCommand(TCON_RESOLUTION); // resolution setting
+    SendData(0x00);
+    SendData(0xb0);
+    SendData(0x01);
+    SendData(0x08);
+
+    SendCommand(VCM_DC_SETTING_REGISTER); // vcom_DC setting
+    SendData(0x12);
+
+    SendCommand(
+        VCOM_AND_DATA_INTERVAL_SETTING); // VCOM AND DATA INTERVAL SETTING
+    SendData(0x97);
+
+    SetGrayLut();
+  }
+}
+
+void init_gray(const FunctionCallbackInfo<Value> &args) {
+  Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
+      bind(init_grey_sync), new Nan::Callback(args[0].As<v8::Function>())));
+}
+
 // #include <fstream>
 // std::ofstream logFile("logfile.txt");
 
@@ -305,7 +341,11 @@ void displayPartial(UBYTE *image, UWORD x, UWORD y, UWORD w, UWORD h) {
   Width = (EPD_WIDTH % 8 == 0) ? (EPD_WIDTH / 8) : (EPD_WIDTH / 8 + 1);
   Height = EPD_HEIGHT;
 
-  SendCommand(DATA_START_TRANSMISSION_2);
+  x = x & 0xf8;
+  y = y & 0xf8;
+  w = w & 0xf8;
+
+  SendCommand(PARTIAL_DATA_START_TRANSMISSION_2);
   SendData(x >> 8);
   SendData(x & 0xf8); // x should be the multiple of 8, the last 3 bit will
                       // always be ignored
@@ -320,10 +360,10 @@ void displayPartial(UBYTE *image, UWORD x, UWORD y, UWORD w, UWORD h) {
 
   for (UWORD j = y; j < h; j++) {
     for (UWORD i = x; i < w; i++) {
-      UBYTE buffer = 0xff;
-      for (UWORD k = 0; k < 8; k++) {
-        buffer = (buffer << 1) | (image[8 * (i + j * Width) + k] & 0x01);
-      }
+      UBYTE buffer = 0x00;
+      // for (UWORD k = 0; k < 8; k++) {
+      //   buffer = (buffer << 1) | ((image[8 * (i + j * Width) + k] & 0x80) >> 7);
+      // }
       SendData(buffer);
     }
   }
@@ -367,12 +407,12 @@ void display(UBYTE *image) {
       // SendData(image[i + j * Width]);
       UBYTE buffer = 0xff;
       for (UWORD k = 0; k < 8; k++) {
-        buffer = (buffer << 1) | (image[8 * (i + j * Width) + k] & 0x01);
+        buffer = (buffer << 1) | ((image[8 * (i + j * Width) + k] & 0x80) >> 7);
       }
       SendData(buffer);
     }
   }
-  TurnOnDisplay();
+  RefreshDisplay();
   WaitUntilIdle();
 }
 
@@ -387,6 +427,67 @@ void displayFrame(const FunctionCallbackInfo<Value> &args) {
 
   Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
       bind(display, imageData), new Nan::Callback(args[1].As<v8::Function>())));
+}
+
+#define WHITE 0xC0
+#define GRAY1 0x80
+#define GRAY2 0x40
+#define BLACK 0x00
+void displayGray(UBYTE *image) {
+  UWORD Width, Height;
+  Width = (EPD_WIDTH % 8 == 0) ? (EPD_WIDTH / 8) : (EPD_WIDTH / 8 + 1);
+  Height = EPD_HEIGHT;
+
+  SendCommand(DATA_START_TRANSMISSION_1);
+  for (UWORD j = 0; j < Height; j++) {
+    for (UWORD i = 0; i < Width; i++) {
+      UBYTE buffer = 0xff;
+      for (UWORD k = 0; k < 8; k++) {
+        UBYTE color = (image[8 * (i + j * Width) + k]) & 0xC0;
+        if (color == WHITE || color == GRAY1) {
+          buffer = (buffer << 1) | 1;
+        } else {
+          buffer = buffer << 1;
+        }
+      }
+      SendData(buffer);
+    }
+  }
+
+  SendCommand(DATA_START_TRANSMISSION_2);
+  for (UWORD j = 0; j < Height; j++) {
+    for (UWORD i = 0; i < Width; i++) {
+      UBYTE buffer = 0xff;
+      for (UWORD k = 0; k < 8; k++) {
+        UBYTE color = (image[8 * (i + j * Width) + k]) & 0xC0;
+        // It seems that to achieve a gray color we set first the value to one
+        // color and then the opposite.
+        if (color == WHITE || color == GRAY2) {
+          buffer = (buffer << 1) | 1;
+        } else {
+          buffer = buffer << 1;
+        }
+      }
+      SendData(buffer);
+    }
+  }
+
+  RefreshDisplay();
+  WaitUntilIdle();
+}
+
+void displayGrayFrame(const FunctionCallbackInfo<Value> &args) {
+  UBYTE *imageData = NULL;
+
+  if (!args[0]->IsNull()) {
+    v8::Local<v8::Uint8Array> grayView = args[0].As<v8::Uint8Array>();
+    void *grayData = grayView->Buffer()->GetContents().Data();
+    imageData = static_cast<UBYTE *>(grayData);
+  }
+
+  Nan::AsyncQueueWorker(
+      new Epd2In7AsyncWorker(bind(displayGray, imageData),
+                             new Nan::Callback(args[1].As<v8::Function>())));
 }
 
 void clear_sync(void) {
@@ -408,7 +509,7 @@ void clear_sync(void) {
     }
   }
 
-  TurnOnDisplay();
+  RefreshDisplay();
   WaitUntilIdle();
 }
 
@@ -431,11 +532,13 @@ void sleep(const FunctionCallbackInfo<Value> &args) {
 
 void InitAll(Local<Object> exports) {
   NODE_SET_METHOD(exports, "init", init);
+  NODE_SET_METHOD(exports, "init_gray", init_gray);
   NODE_SET_METHOD(exports, "clear", clear);
   NODE_SET_METHOD(exports, "sleep", sleep);
   NODE_SET_METHOD(exports, "width", width);
   NODE_SET_METHOD(exports, "height", height);
   NODE_SET_METHOD(exports, "displayFrame", displayFrame);
+  NODE_SET_METHOD(exports, "displayGrayFrame", displayGrayFrame);
   NODE_SET_METHOD(exports, "displayPartialFrame", displayPartialFrame);
 }
 

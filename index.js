@@ -23,37 +23,6 @@ function getImageBuffer(orientation) {
 
 function displayImageBuffer(img) {
 	return new Promise(resolve => {
-		// let buf = new Buffer(width * height/2);
-		// for(let y = 0; y < height; y++) { 
-		// 	for(let  x = 0; x<width-1; x+=2){
-		// 		let pixel_0 = img.getPixel(x, y);
-		// 		let pixel_1 = img.getPixel(x+1, y);
-
-		// 		if (pixel_0 < 64)
-		// 			if (pixel_1 < 64)
-		// 				buf[(y*width+x)/2] = 0x33;
-		// 			else if (pixel_1 < 192)
-		// 				buf[(y*width+x)/2] = 0x34;
-		// 			else
-		// 				buf[(y*width+x)/2] = 0x30; 
-		// 		else if (pixel_0 < 192) 
-		// 			if (pixel_1 < 64)
-		// 				buf[(y*width+x)/2] = 0x43;
-		// 			else if (pixel_1 < 192)
-		// 				buf[(y*width+x)/2] = 0x44;
-		// 			else	
-		// 				buf[(y*width+x)/2] = 0x40;		
-		// 		else
-		// 			if (pixel_1 < 64)
-		// 				buf[(y*width+x)/2] = 0x03;
-		// 			else if (pixel_1 < 192)
-		// 				buf[(y*width+x)/2] = 0x04;
-		// 			else
-		// 				buf[(y*width+x)/2] = 0x00; 
-
-		// 	}
-		// }
-
 		let buf = new Buffer.alloc(width * height, 0);
 		for (let y = 0; y < height; y++) {
 			for (let x = 0; x < width; x++) {
@@ -76,6 +45,25 @@ function displayImageBuffer(img) {
 	})
 }
 
+function displayGrayImageBuffer(img) {
+	return new Promise(resolve => {
+		let buf = new Buffer.alloc(width * height, 0);
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				let color = img.height == height
+					? img.getPixel(x, y)
+					: img.getPixel(img.width - y, x);
+				buf[x + y * width] = color;
+			}
+		}
+		epd4in2.displayFrame(
+			buf,
+			() => {
+				resolve();
+			}
+		);
+	})
+}
 
 function displayPartialImageBuffer(img, x, y, w, h) {
 	return new Promise(resolve => {
@@ -106,10 +94,18 @@ exports.getImageBuffer = getImageBuffer;
 
 exports.displayImageBuffer = displayImageBuffer;
 
+exports.displayGrayImageBuffer = displayGrayImageBuffer;
+
 exports.displayPartialImageBuffer = displayPartialImageBuffer;
 
 exports.init = () => new Promise(resolve => {
 	epd4in2.init(() => {
+		resolve();
+	});
+})
+
+exports.initGray = () => new Promise(resolve => {
+	epd4in2.init_gray(() => {
 		resolve();
 	});
 })
@@ -127,8 +123,10 @@ exports.sleep = () => new Promise(resolve => {
 })
 
 exports.colors = {
-	white: 255,
-	black: 0
+	white: 0xFF,
+	gray: 0xC0,
+	darkgray: 0x80,
+	black: 0x00
 }
 
 exports.width = width;
