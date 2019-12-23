@@ -70,6 +70,8 @@ class Epd2In7AsyncWorker : public Nan::AsyncWorker {
 #define DATA_STOP                                   0x11
 #define DISPLAY_REFRESH                             0x12
 #define DATA_START_TRANSMISSION_2                   0x13
+#define PARTIAL_DATA_START_TRANSMISSION_1           0x14
+#define PARTIAL_DATA_START_TRANSMISSION_2           0x15
 #define PARTIAL_DISPLAY_REFRESH                     0x16
 #define PLL_CONTROL                                 0x30
 #define TEMPERATURE_SENSOR_COMMAND                  0x40
@@ -179,6 +181,20 @@ void TurnOnDisplay(void)
     SendCommand(DISPLAY_REFRESH);
     EpdIf::DelayMs(100);
     WaitUntilIdle();
+}
+
+void PartialRefresh(UWORD x, UWORD y, UWORD w, UWORD l) {
+  SendData(x >> 8);
+  SendData(x & 0xf8);     // x should be the multiple of 8, the last 3 bit will always be ignored
+  SendData(y >> 8);        
+  SendData(y & 0xff);
+  SendData(w >> 8);
+  SendData(w & 0xf8);     // w (width) should be the multiple of 8, the last 3 bit will always be ignored
+  SendData(l >> 8);        
+  SendData(l & 0xff);
+
+  EpdIf::DelayMs(100);
+  WaitUntilIdle();
 }
 
 #define LUT_FOR_VCOM 0x20
@@ -314,6 +330,59 @@ void init(const FunctionCallbackInfo<Value>& args)
   ));
 }
 
+// #include <fstream>
+// std::ofstream logFile("logfile.txt");
+
+void displayPartial(UBYTE * image, UWORD x, UWORD y, UWORD w, UWORD h)
+{
+  UWORD Width, Height;
+  Width = (EPD_WIDTH % 8 == 0)? (EPD_WIDTH / 8 ): (EPD_WIDTH / 8 + 1);
+  Height = EPD_HEIGHT;
+
+  SendCommand(DATA_START_TRANSMISSION_2);
+  SendData(x >> 8);
+  SendData(x & 0xf8);     // x should be the multiple of 8, the last 3 bit will always be ignored
+  SendData(y >> 8);        
+  SendData(y & 0xff);
+  SendData(w >> 8);
+  SendData(w & 0xf8);     // w (width) should be the multiple of 8, the last 3 bit will always be ignored
+  SendData(h >> 8);        
+  SendData(h & 0xff);
+  EpdIf::DelayMs(2);
+
+  for (UWORD j = y; j < h; j++) {
+      for (UWORD i = x; i < w; i++) {
+          UBYTE buffer = 0xff;
+          for (UWORD k = 0; k < 8; k++) {
+            buffer = (buffer << 1) | (image[ 8 * (i + j * Width) + k ] & 0x01);
+          }
+          SendData(buffer);
+      }
+  }
+
+  PartialRefresh(x, y, w, h);
+}
+
+void displayPartialFrame(const FunctionCallbackInfo<Value>& args)
+{
+  UBYTE* imageData = NULL;
+
+  if ( ! args[0]->IsNull()) {
+  	v8::Local<v8::Uint8Array> blackView = args[0].As<v8::Uint8Array>();
+  	void *blackData = blackView->Buffer()->GetContents().Data();
+  	imageData = static_cast<UBYTE*>(blackData);
+  }
+
+  UWORD x = args[1].As<v8::Number>()->Value();
+  UWORD y = args[2].As<v8::Number>()->Value();
+  UWORD w = args[3].As<v8::Number>()->Value();
+  UWORD h = args[4].As<v8::Number>()->Value();
+
+  Nan::AsyncQueueWorker(new Epd2In7AsyncWorker(
+    bind(displayPartial, imageData, x, y, w, h),
+    new Nan::Callback(args[5].As<v8::Function>())
+  ));
+}
 
 void display(UBYTE * image)
 {
@@ -417,6 +486,7 @@ void InitAll(Local<Object> exports)
   NODE_SET_METHOD(exports, "width", width);
   NODE_SET_METHOD(exports, "height", height);
   NODE_SET_METHOD(exports, "displayFrame", displayFrame);
+  NODE_SET_METHOD(exports, "displayPartialFrame", displayPartialFrame);
 }
 
 NODE_MODULE(epd2in7, InitAll)

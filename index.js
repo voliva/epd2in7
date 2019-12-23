@@ -13,10 +13,10 @@ function getImageBuffer(orientation) {
 			img = gd.createSync(width, height);
 		}
 
-		for (let i=0; i<256; i++) {
-			img.colorAllocate(i, i, i); 
+		for (let i = 0; i < 256; i++) {
+			img.colorAllocate(i, i, i);
 		}
-		
+
 		return resolve(img);
 	})
 }
@@ -28,7 +28,7 @@ function displayImageBuffer(img) {
 		// 	for(let  x = 0; x<width-1; x+=2){
 		// 		let pixel_0 = img.getPixel(x, y);
 		// 		let pixel_1 = img.getPixel(x+1, y);
-				
+
 		// 		if (pixel_0 < 64)
 		// 			if (pixel_1 < 64)
 		// 				buf[(y*width+x)/2] = 0x33;
@@ -50,20 +50,20 @@ function displayImageBuffer(img) {
 		// 				buf[(y*width+x)/2] = 0x04;
 		// 			else
 		// 				buf[(y*width+x)/2] = 0x00; 
-				
+
 		// 	}
 		// }
 
 		let buf = new Buffer.alloc(width * height, 0);
-		for(let y = 0; y < height; y++) {
-			for(let x = 0; x < width; x++) {
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
 				let color = img.height == height
 					? img.getPixel(x, y)
 					: img.getPixel(img.width - y, x);
 				if (color < 128) { // black
-					buf[ x + y * width ] = 0x00;
+					buf[x + y * width] = 0x00;
 				} else { // white
-					buf[ x + y * width ] = 0xff;
+					buf[x + y * width] = 0xff;
 				}
 			}
 		}
@@ -76,9 +76,37 @@ function displayImageBuffer(img) {
 	})
 }
 
+
+function displayPartialImageBuffer(img, x, y, w, h) {
+	return new Promise(resolve => {
+		let buf = new Buffer.alloc(width * height, 0);
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				let color = img.height == height
+					? img.getPixel(x, y)
+					: img.getPixel(img.width - y, x);
+				if (color < 128) { // black
+					buf[x + y * width] = 0x00;
+				} else { // white
+					buf[x + y * width] = 0xff;
+				}
+			}
+		}
+		epd4in2.displayPartialFrame(
+			buf,
+			x, y, w, h,
+			() => {
+				resolve();
+			}
+		);
+	})
+}
+
 exports.getImageBuffer = getImageBuffer;
 
 exports.displayImageBuffer = displayImageBuffer;
+
+exports.displayPartialImageBuffer = displayPartialImageBuffer;
 
 exports.init = () => new Promise(resolve => {
 	epd4in2.init(() => {
