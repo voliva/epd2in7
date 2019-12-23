@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zamu87/epd4in2.git"
+    "url": "git+https://github.com/voliva/epd2in7.git"
   },
   "keywords": [
     "epaper",
@@ -20,10 +20,13 @@
   "license": "ISC",
   "gypfile": true,
   "bugs": {
-    "url": "https://github.com/zamu87/epd4in2/issues"
+    "url": "https://github.com/voliva/epd2in7/issues"
   },
   "dependencies": {
     "nan": "^2.12.1",
     "node-gd": "^1.5.4"
+  },
+  "publishConfig": {
+    "registry": "http://localhost:4873"
   }
 }

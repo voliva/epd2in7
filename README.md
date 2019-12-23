@@ -1,8 +1,8 @@
-# epd4in2
+# epd2in7
 
-A Node.js package for the 4.2inch e-Paper waveshare display on a Raspberry Pi 2/3/zero, forked from [williwasser's epd7x5 Node.js package](https://github.com/williwasser/epd7x5)
+A Node.js package for the 2.7inch e-Paper waveshare display on a Raspberry Pi 2/3/zero
 
-[Link to waveshare wiki](https://www.waveshare.com/wiki/4.2inch_e-Paper_Module)
+[Link to waveshare wiki](https://www.waveshare.com/wiki/2.7inch_e-Paper_Module)
 
 ## Dependencies
 1. WiringPi for GPIO access of Raspberry Pi
