@@ -29,29 +29,28 @@
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
 
-EpdIf::EpdIf(){};
-EpdIf::~EpdIf(){};
+namespace EpdIf {
+  void DigitalWrite(int pin, int value) { digitalWrite(pin, value); }
 
-void EpdIf::DigitalWrite(int pin, int value) { digitalWrite(pin, value); }
+  int DigitalRead(int pin) { return digitalRead(pin); }
 
-int EpdIf::DigitalRead(int pin) { return digitalRead(pin); }
+  void DelayMs(unsigned int delaytime) { delay(delaytime); }
 
-void EpdIf::DelayMs(unsigned int delaytime) { delay(delaytime); }
+  void SpiTransfer(UBYTE data) { wiringPiSPIDataRW(0, &data, 1); }
 
-void EpdIf::SpiTransfer(UBYTE data) { wiringPiSPIDataRW(0, &data, 1); }
+  int IfInit(void) {
+    if (wiringPiSetupGpio() < 0) { // using Broadcom GPIO pin mapping
+      return -1;
+    }
 
-int EpdIf::IfInit(void) {
-  if (wiringPiSetupGpio() < 0) { // using Broadcom GPIO pin mapping
-    return -1;
+    pinMode(RST_PIN, OUTPUT);
+    pinMode(DC_PIN, OUTPUT);
+    pinMode(CS_PIN, OUTPUT);
+
+    pinMode(BUSY_PIN, INPUT);
+
+    wiringPiSPISetupMode(0, 32000000, 0);
+
+    return 0;
   }
-
-  pinMode(RST_PIN, OUTPUT);
-  pinMode(DC_PIN, OUTPUT);
-  pinMode(CS_PIN, OUTPUT);
-
-  pinMode(BUSY_PIN, INPUT);
-
-  wiringPiSPISetupMode(0, 32000000, 0);
-
-  return 0;
 }
