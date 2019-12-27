@@ -52,18 +52,21 @@ exports.initGray = (sp = speed.normal) => new Promise(resolve =>
 
 exports.displayImageBuffer = (img, bounds) => new Promise(resolve => {
 	const buf = createBuffer(img, color => color < 128 ? colors.black : colors.white);
+
 	if (!bounds) {
 		return epd4in2.display(
 			buf,
 			resolve
 		);
 	}
+
+	const isPortrait = img.height === height;
 	return epd4in2.display(
 		buf,
-		bounds.x,
-		bounds.y,
-		bounds.w,
-		bounds.h,
+		isPortrait ? bounds.x : bounds.y,
+		isPortrait ? bounds.y : height - (bounds.x + bounds.w),
+		isPortrait ? bounds.w : bounds.h,
+		isPortrait ? bounds.h : bounds.w,
 		resolve
 	);
 });

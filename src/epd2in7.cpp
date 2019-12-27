@@ -41,18 +41,22 @@ void RefreshDisplay(void) {
   WaitUntilIdle();
 }
 
-void PartialRefresh(UWORD x, UWORD y, UWORD w, UWORD l) {
+void PartialRefresh(UWORD x, UWORD y, UWORD w, UWORD h) {
+  // x should be the multiple of 8, the last 3 bit will always be ignored
+  UWORD nX = x & 0xfff8;
+
+  w += x - nX; // Add the width of the removed x.
+  UWORD nW = (w & 0xfff8) + 0x08; // Round up
+
   SendCommand(PARTIAL_DISPLAY_REFRESH);
-  SendData(x >> 8);
-  SendData(x & 0xf8); // x should be the multiple of 8, the last 3 bit will
-                      // always be ignored
+  SendData(nX >> 8);
+  SendData(nX & 0x0f8);
   SendData(y >> 8);
-  SendData(y & 0xff);
-  SendData(w >> 8);
-  SendData(w & 0xf8); // w (width) should be the multiple of 8, the last 3 bit
-                      // will always be ignored
-  SendData(l >> 8);
-  SendData(l & 0xff);
+  SendData(y & 0x0ff);
+  SendData(nW >> 8);
+  SendData(nW & 0x0f8);
+  SendData(h >> 8);
+  SendData(h & 0x0ff);
 
   WaitUntilIdle();
 }
